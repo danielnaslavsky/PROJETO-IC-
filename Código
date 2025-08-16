@@ -3,6 +3,7 @@
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
+//Para escolher no display
 enum Estado { MENU, REFLEXO, MATEMATICA, GENIUS };
 Estado estadoAtual = MENU;
 
@@ -10,18 +11,18 @@ Estado estadoAtual = MENU;
 const int botoes[NUM_BOTOES] = {6, 7, 8, 9, A2}; // Botoes 6=cima, 7=baixo, 8=ok
 
 const int botaoJoystick = A1;
-// Menu
+//Menu
 int opcaoMenu = 0;
 const int TOTAL_OPCOES = 3; // Agora 3 opções: Reflexo, Matematica, Genius
 
-// REFLEXO
+//Reflexo
 const int ledPins[5] = {2, 3, 4, 5, 11};
 const int buzzerPin = 13;
 const int tempoLimite = 700;
 int pontos_reflexo = 0;
 int ledAtual;
 
-// MATEMÁTICA
+//Matemática
 String expressoes_f[5][10] = {
   {"9/9", "1+0", "7-6", "(1024/2)-511", "(2*3)-5", "7^2-48", "cos(0)", "e^0", "(22-(2*10))/2", "122-11^2"},
   {"6*7-40", "10/5", "2!", "14-(4*3)", "2^10/2^9", "2*cos(0)", "2^2-2", "sqrt(16)-sqrt(4)", "6/3", "8/4"},
@@ -38,7 +39,7 @@ int respostas_f[5][10] = {
 };
 int pontuacao_mat = 0;
 
-// GENIUS
+//Genius
 const int maxSequencia = 20;
 int sequencia[maxSequencia];
 int tamanhoSequencia = 0;
@@ -54,6 +55,7 @@ void setup() {
 }
 
 void loop() {
+  //Escolhendo qual estado (qual das opções de jogo vai escolher)
   switch (estadoAtual) {
     case MENU:
       mostrarMenu();
@@ -80,6 +82,7 @@ void mostrarMenu() {
 
   int valorX = analogRead(botaoJoystick);
 
+  //Programando o joystick
   if (millis() - ultimoTempo > debounce) {
     if (valorX > 700 && estadoAnterior <= 700) {
       opcaoMenu = (opcaoMenu - 1 + TOTAL_OPCOES) % TOTAL_OPCOES;
@@ -90,7 +93,7 @@ void mostrarMenu() {
     }
   }
   estadoAnterior = valorX;
-
+  //Selecionando os jogos
   lcd.setCursor(0, 0);
   lcd.print((opcaoMenu == 0 ? "> " : "  "));
   lcd.print("Reflexo       ");
@@ -112,9 +115,9 @@ void mostrarMenu() {
   }
 }
 
-// ====================== JOGO REFLEXO ======================
+//Criando a função para o reflexo
 void jogoReflexo() {
-  pontos_reflexo = 0;
+  pontos_reflexo = 0;  //Definindo a pontuação
   int tempoAtual = tempoLimite;
 
   for (;;) {
@@ -129,16 +132,16 @@ void jogoReflexo() {
     while (millis() - inicio < tempoAtual) {
       for (int i = 0; i < 5; i++) {
         if (digitalRead(botoes[i]) == LOW) {
-          if (i == ledAtual) {
+          if (i == ledAtual) {  //Acertou
             tone(buzzerPin, 900, 100);
-            pontos_reflexo++;
+            pontos_reflexo++;  //Aumenta a pontução
             lcd.setCursor(0, 1);
             lcd.print("Acertou! Pts:");
             lcd.print(pontos_reflexo);
             delay(700);
             acertou = true;
 
-            if (pontos_reflexo % 5 == 0) {
+            if (pontos_reflexo % 5 == 0) {  //A cada cinco pontos, a velocidade aumenta
               int novoTempo = tempoAtual * 0.95;
               if (novoTempo < 400) novoTempo = 400;
               tempoAtual = novoTempo;
@@ -146,7 +149,7 @@ void jogoReflexo() {
 
           } else {
             lcd.setCursor(0, 1);
-            lcd.print("Errou! Game Over");
+            lcd.print("Errou! Game Over");  //Errou
             digitalWrite(ledPins[ledAtual], LOW);
             tone(buzzerPin, 300, 500);
             delay(2000);
@@ -159,7 +162,7 @@ void jogoReflexo() {
       if (acertou) break;
     }
 
-    if (!acertou) {
+    if (!acertou) {  //Tempo esgotou
       lcd.setCursor(0, 1);
       lcd.print("Tempo! Game Over");
       digitalWrite(ledPins[ledAtual], LOW);
@@ -172,15 +175,15 @@ void jogoReflexo() {
   }
 }
 
-// =================== JOGO MATEMÁTICA ====================
+//Criando a função para o jogo da matemática
 void jogoMatematica() {
   pontuacao_mat = 0;
 
   for (;;) {
     int linha = random(0, 5);
     int coluna = random(0, 10);
-    String expressao = expressoes_f[linha][coluna];
-    int resposta_correta = respostas_f[linha][coluna];
+    String expressao = expressoes_f[linha][coluna];  //Qual expressão vai usar
+    int resposta_correta = respostas_f[linha][coluna];  //Qual a resposta certa
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -198,7 +201,7 @@ void jogoMatematica() {
           lcd.setCursor(0, 0);
           lcd.print("Sua resposta: ");
           lcd.print(respostas_f[i][0]);
-          if (resposta == resposta_correta) {
+          if (resposta == resposta_correta) {  //Se a resposta for igual ao gabarito
             pontuacao_mat++;
             lcd.setCursor(0, 1);
             lcd.print("Correto! Pts:");
@@ -206,7 +209,7 @@ void jogoMatematica() {
             delay(1000);
           } else {
             lcd.setCursor(0, 1);
-            lcd.print("Erro! Game Over");
+            lcd.print("Erro! Game Over");  //Se a pessoa errou
             delay(2000);
             return;
           }
@@ -218,7 +221,7 @@ void jogoMatematica() {
       if (respondeu) break;
     }
 
-    if (!respondeu) {
+    if (!respondeu) {  //Se não respondeu = tempo esgotado 
       lcd.clear();
       lcd.print("Tempo esgotado!");
       delay(2000);
@@ -227,7 +230,7 @@ void jogoMatematica() {
   }
 }
 
-// =================== JOGO GENIUS ===================
+
 void piscarLED(int led, int duracao) {
   digitalWrite(ledPins[led], HIGH);
   tone(buzzerPin, 1000, duracao);
@@ -237,11 +240,11 @@ void piscarLED(int led, int duracao) {
 }
 
 
-bool lerBotaoDebounce(int esperado) {
+bool lerBotaoDebounce(int esperado) {  
   while (true) {
     for (int i = 0; i < NUM_BOTOES; i++) {
       if (digitalRead(botoes[i]) == LOW) {
-        delay(50);  
+        delay(50);  //Evitar erros na leitura 
         if (digitalRead(botoes[i]) == LOW) {  
           while (digitalRead(botoes[i]) == LOW); 
           return (i == esperado);
@@ -256,6 +259,7 @@ bool lerBotao(int esperado) {
   return lerBotaoDebounce(esperado);
 }
 
+//Criando a função para o jogo genius
 void jogoGenius() {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -267,12 +271,13 @@ void jogoGenius() {
   randomSeed(analogRead(A0));
 
   while (true) {
-    
+
+    //Escolhe o botão aleatório
     sequencia[tamanhoSequencia - 1] = random(0, NUM_BOTOES);
 
     
     for (int i = 0; i < tamanhoSequencia; i++) {
-      digitalWrite(ledPins[sequencia[i]], HIGH);
+      digitalWrite(ledPins[sequencia[i]], HIGH);  //Ascende o botão escolhido para a sequência
       tone(buzzerPin, 1000, 300);
       delay(500);
       digitalWrite(ledPins[sequencia[i]], LOW);
@@ -281,7 +286,7 @@ void jogoGenius() {
 
     
     for (int i = 0; i < tamanhoSequencia; i++) {
-      if (!lerBotao(sequencia[i])) {
+      if (!lerBotao(sequencia[i])) {  //Errou
         lcd.clear();
         lcd.print("Errou! Fim de jogo");
         tone(buzzerPin, 300, 1000);
@@ -291,7 +296,7 @@ void jogoGenius() {
     }
 
     tamanhoSequencia++;
-    if (tamanhoSequencia > 12) {
+    if (tamanhoSequencia > 12) {  //Ganhou o jogo
       lcd.clear();
       lcd.print("Ganhou o jogo!");
       delay(3000);

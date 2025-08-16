@@ -1,0 +1,306 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+
+enum Estado { MENU, REFLEXO, MATEMATICA, GENIUS };
+Estado estadoAtual = MENU;
+
+#define NUM_BOTOES 5
+const int botoes[NUM_BOTOES] = {6, 7, 8, 9, A2}; // Botoes 6=cima, 7=baixo, 8=ok
+
+const int botaoJoystick = A1;
+// Menu
+int opcaoMenu = 0;
+const int TOTAL_OPCOES = 3; // Agora 3 opções: Reflexo, Matematica, Genius
+
+// REFLEXO
+const int ledPins[5] = {2, 3, 4, 5, 11};
+const int buzzerPin = 13;
+const int tempoLimite = 700;
+int pontos_reflexo = 0;
+int ledAtual;
+
+// MATEMÁTICA
+String expressoes_f[5][10] = {
+  {"9/9", "1+0", "7-6", "(1024/2)-511", "(2*3)-5", "7^2-48", "cos(0)", "e^0", "(22-(2*10))/2", "122-11^2"},
+  {"6*7-40", "10/5", "2!", "14-(4*3)", "2^10/2^9", "2*cos(0)", "2^2-2", "sqrt(16)-sqrt(4)", "6/3", "8/4"},
+  {"15/5", "sqrt(9)", "log(e^3)", "5+1-3", "2^2-1", "81/27", "6!/(2*5!)", "3^70/3^69", "12/4", "48/16"},
+  {"sqrt(16)", "24/6", "2^2", "(3/2)*(8/3)", "log(16)", "2^3-4", "66-(15*4)-2", "81/27+1", "4!/6", "3^2-5"},
+  {"125/5^2", "1000/200", "87-82", "40/8", "5*cos(0)", "36-8+21-22*2", "4+1", "5!/4!", "45/9", "55/sqrt(121)"}
+};
+int respostas_f[5][10] = {
+  {5,5,5,5,5,5,5,5,5,5},
+  {4,4,4,4,4,4,4,4,4,4},
+  {3,3,3,3,3,3,3,3,3,3},
+  {2,2,2,2,2,2,2,2,2,2},
+  {1,1,1,1,1,1,1,1,1,1}
+};
+int pontuacao_mat = 0;
+
+// GENIUS
+const int maxSequencia = 20;
+int sequencia[maxSequencia];
+int tamanhoSequencia = 0;
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+  for (int i = 0; i < NUM_BOTOES; i++) pinMode(botoes[i], INPUT_PULLUP);
+  for (int i = 0; i < 5; i++) pinMode(ledPins[i], OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  randomSeed(analogRead(A0));
+  pinMode(botaoJoystick, INPUT_PULLUP);
+}
+
+void loop() {
+  switch (estadoAtual) {
+    case MENU:
+      mostrarMenu();
+      break;
+    case REFLEXO:
+      jogoReflexo();
+      estadoAtual = MENU;
+      break;
+    case MATEMATICA:
+      jogoMatematica();
+      estadoAtual = MENU;
+      break;
+    case GENIUS:
+      jogoGenius();
+      estadoAtual = MENU;
+      break;
+  }
+}
+
+void mostrarMenu() {
+  static int estadoAnterior = 512;
+  static unsigned long ultimoTempo = 0;
+  const unsigned long debounce = 300;
+
+  int valorX = analogRead(botaoJoystick);
+
+  if (millis() - ultimoTempo > debounce) {
+    if (valorX > 700 && estadoAnterior <= 700) {
+      opcaoMenu = (opcaoMenu - 1 + TOTAL_OPCOES) % TOTAL_OPCOES;
+      ultimoTempo = millis();
+    } else if (valorX < 300 && estadoAnterior >= 300) {
+      opcaoMenu = (opcaoMenu + 1) % TOTAL_OPCOES;
+      ultimoTempo = millis();
+    }
+  }
+  estadoAnterior = valorX;
+
+  lcd.setCursor(0, 0);
+  lcd.print((opcaoMenu == 0 ? "> " : "  "));
+  lcd.print("Reflexo       ");
+  lcd.setCursor(0, 1);
+  lcd.print((opcaoMenu == 1 ? "> " : "  "));
+  lcd.print("Matematica    ");
+  lcd.setCursor(0, 2);
+  lcd.print((opcaoMenu == 2 ? "> " : "  "));
+  lcd.print("Genius        ");
+
+  if (digitalRead(botoes[2]) == LOW) {  // botão OK
+    lcd.clear();
+    switch (opcaoMenu) {
+      case 0: estadoAtual = REFLEXO; break;
+      case 1: estadoAtual = MATEMATICA; break;
+      case 2: estadoAtual = GENIUS; break;
+    }
+    delay(300);
+  }
+}
+
+// ====================== JOGO REFLEXO ======================
+void jogoReflexo() {
+  pontos_reflexo = 0;
+  int tempoAtual = tempoLimite;
+
+  for (;;) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Pressione LED");
+    ledAtual = random(5);
+    digitalWrite(ledPins[ledAtual], HIGH);
+    unsigned long inicio = millis();
+    bool acertou = false;
+
+    while (millis() - inicio < tempoAtual) {
+      for (int i = 0; i < 5; i++) {
+        if (digitalRead(botoes[i]) == LOW) {
+          if (i == ledAtual) {
+            tone(buzzerPin, 900, 100);
+            pontos_reflexo++;
+            lcd.setCursor(0, 1);
+            lcd.print("Acertou! Pts:");
+            lcd.print(pontos_reflexo);
+            delay(700);
+            acertou = true;
+
+            if (pontos_reflexo % 5 == 0) {
+              int novoTempo = tempoAtual * 0.95;
+              if (novoTempo < 400) novoTempo = 400;
+              tempoAtual = novoTempo;
+            }
+
+          } else {
+            lcd.setCursor(0, 1);
+            lcd.print("Errou! Game Over");
+            digitalWrite(ledPins[ledAtual], LOW);
+            tone(buzzerPin, 300, 500);
+            delay(2000);
+            return;
+          }
+          while (digitalRead(botoes[i]) == LOW);
+          break;
+        }
+      }
+      if (acertou) break;
+    }
+
+    if (!acertou) {
+      lcd.setCursor(0, 1);
+      lcd.print("Tempo! Game Over");
+      digitalWrite(ledPins[ledAtual], LOW);
+      tone(buzzerPin, 200, 500);
+      delay(2000);
+      return;
+    }
+
+    digitalWrite(ledPins[ledAtual], LOW);
+  }
+}
+
+// =================== JOGO MATEMÁTICA ====================
+void jogoMatematica() {
+  pontuacao_mat = 0;
+
+  for (;;) {
+    int linha = random(0, 5);
+    int coluna = random(0, 10);
+    String expressao = expressoes_f[linha][coluna];
+    int resposta_correta = respostas_f[linha][coluna];
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Resolva:");
+    lcd.setCursor(0, 1);
+    lcd.print(expressao);
+    unsigned long tempo_inicio = millis();
+    bool respondeu = false;
+
+    while (millis() - tempo_inicio < 3000) {
+      for (int i = 0; i < NUM_BOTOES; i++) {
+        if (digitalRead(botoes[i]) == LOW) {
+          int resposta = i + 1;
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Sua resposta: ");
+          lcd.print(respostas_f[i][0]);
+          if (resposta == resposta_correta) {
+            pontuacao_mat++;
+            lcd.setCursor(0, 1);
+            lcd.print("Correto! Pts:");
+            lcd.print(pontuacao_mat);
+            delay(1000);
+          } else {
+            lcd.setCursor(0, 1);
+            lcd.print("Erro! Game Over");
+            delay(2000);
+            return;
+          }
+          respondeu = true;
+          while (digitalRead(botoes[i]) == LOW);
+          break;
+        }
+      }
+      if (respondeu) break;
+    }
+
+    if (!respondeu) {
+      lcd.clear();
+      lcd.print("Tempo esgotado!");
+      delay(2000);
+      return;
+    }
+  }
+}
+
+// =================== JOGO GENIUS ===================
+void piscarLED(int led, int duracao) {
+  digitalWrite(ledPins[led], HIGH);
+  tone(buzzerPin, 1000, duracao);
+  delay(duracao);
+  digitalWrite(ledPins[led], LOW);
+  delay(200);
+}
+
+
+bool lerBotaoDebounce(int esperado) {
+  while (true) {
+    for (int i = 0; i < NUM_BOTOES; i++) {
+      if (digitalRead(botoes[i]) == LOW) {
+        delay(50);  
+        if (digitalRead(botoes[i]) == LOW) {  
+          while (digitalRead(botoes[i]) == LOW); 
+          return (i == esperado);
+        }
+      }
+    }
+  }
+}
+
+
+bool lerBotao(int esperado) {
+  return lerBotaoDebounce(esperado);
+}
+
+void jogoGenius() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Jogo Genius");
+  delay(1000);
+
+  int sequencia[30];
+  int tamanhoSequencia = 1;
+  randomSeed(analogRead(A0));
+
+  while (true) {
+    
+    sequencia[tamanhoSequencia - 1] = random(0, NUM_BOTOES);
+
+    
+    for (int i = 0; i < tamanhoSequencia; i++) {
+      digitalWrite(ledPins[sequencia[i]], HIGH);
+      tone(buzzerPin, 1000, 300);
+      delay(500);
+      digitalWrite(ledPins[sequencia[i]], LOW);
+      delay(200);
+    }
+
+    
+    for (int i = 0; i < tamanhoSequencia; i++) {
+      if (!lerBotao(sequencia[i])) {
+        lcd.clear();
+        lcd.print("Errou! Fim de jogo");
+        tone(buzzerPin, 300, 1000);
+        delay(2000);
+        return; 
+      }
+    }
+
+    tamanhoSequencia++;
+    if (tamanhoSequencia > 12) {
+      lcd.clear();
+      lcd.print("Ganhou o jogo!");
+      delay(3000);
+      return;
+    }
+
+    lcd.clear();
+    lcd.print("Pontuacao: ");
+    lcd.print(tamanhoSequencia - 1);
+    delay(1000);
+  }
+}

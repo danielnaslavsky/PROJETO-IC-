@@ -20,6 +20,10 @@ Além disso, também enfrentamos alguns problemas com a demora na compra de mate
 
 ## Quais foram as referências usadas no trabalho?  
 
+![Foto 1](foto1.jpg)
+![Foto 2](foto2.jpg)
+
+
 Para fazer o trabalho nos inspiramos em:  
 - O famoso jogo de memória **“Genius”**.  
 - O **Jogo do Reflexo** ou **“Jogo da Marmota”**.  

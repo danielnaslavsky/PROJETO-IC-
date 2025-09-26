@@ -3,7 +3,7 @@
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
-//Para escolher no display
+//Para escolher no display.
 enum Estado { MENU, REFLEXO, MATEMATICA, GENIUS };
 Estado estadoAtual = MENU;
 

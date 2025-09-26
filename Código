@@ -175,7 +175,7 @@ void jogoReflexo() {
   }
 }
 
-//Criando a função para o jogo da matemática
+//Criando a função para o jogo matemática
 void jogoMatematica() {
   pontuacao_mat = 0;
 
